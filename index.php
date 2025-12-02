@@ -321,8 +321,6 @@ $page = $_GET['page'] ?? 'glossary';
     const dirEnFrBtn = document.getElementById('dir-en-fr');
     const directionNote = document.getElementById('direction-note');
     const labelTerm = document.getElementById('label-term');
-    const titleEl = document.getElementById('title');
-    const toplineEl = document.getElementById('topline');
     const lampToggle = document.getElementById('lamp-toggle');
     const loaderEl = document.getElementById('loader');
     const tabs = document.querySelectorAll('.tab-link');
@@ -411,8 +409,6 @@ $page = $_GET['page'] ?? 'glossary';
     function applyUI() {
       const lang = getLang();
       const t = uiText[lang];
-      if (titleEl) titleEl.textContent = t.title;
-      if (toplineEl) toplineEl.textContent = t.topline;
       labelTerm.textContent = t.termLabel;
       termInput.placeholder = t.placeholder;
       directionNote.textContent = t.directionNote;
