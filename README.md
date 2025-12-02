@@ -104,4 +104,14 @@ The application includes an **admin dashboard**, a **feedback system**, and a mo
 - CRUD models for terms and users  
 
 ---
+# 📚 Top Languages Used
+
+![PHP](https://img.shields.io/badge/PHP-85%25-777BB4?style=for-the-badge&logo=php&logoColor=white)
+![SQL](https://img.shields.io/badge/SQL-15%25-005C84?style=for-the-badge&logo=mysql&logoColor=white)
+
+---
+
+# 👥 Team Members
+
+- [**Arshia Salehi**](https://github.com/arshiasalehi)
 
