@@ -26,6 +26,13 @@
           <textarea id="term-def-fr" class="w-full h-20 rounded-lg border themed-input p-2"></textarea>
           <label class="text-xs uppercase tracking-wide themed-muted" for="term-def-en">English definition</label>
           <textarea id="term-def-en" class="w-full h-20 rounded-lg border themed-input p-2"></textarea>
+          <label class="text-xs uppercase tracking-wide themed-muted" for="term-category">Category</label>
+          <select id="term-category" class="w-full px-3 py-2 rounded-lg border themed-input outline-none">
+            <option value="">Select category</option>
+            <?php foreach (Glossary::CATEGORIES as $cat): ?>
+              <option value="<?php echo htmlspecialchars($cat, ENT_QUOTES); ?>"><?php echo htmlspecialchars($cat); ?></option>
+            <?php endforeach; ?>
+          </select>
           <div class="flex gap-2">
             <button id="save-term" class="px-4 py-2 rounded-lg btn-primary">Save</button>
             <button id="clear-term" class="px-4 py-2 rounded-lg btn-secondary">Clear</button>
@@ -33,6 +40,15 @@
           <div id="term-form-message" class="text-xs themed-muted"></div>
         </div>
         <div>
+          <div class="flex items-center gap-2 mb-2">
+            <label class="text-xs themed-muted" for="admin-filter-category">Filter:</label>
+            <select id="admin-filter-category" class="px-3 py-1.5 rounded-lg border themed-input outline-none text-sm">
+              <option value="">All</option>
+              <?php foreach (Glossary::CATEGORIES as $cat): ?>
+                <option value="<?php echo htmlspecialchars($cat, ENT_QUOTES); ?>"><?php echo htmlspecialchars($cat); ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
           <div id="terms-list" class="text-sm space-y-2 max-h-80 overflow-y-auto pr-2"></div>
         </div>
       </div>

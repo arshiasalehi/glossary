@@ -3,6 +3,8 @@ require_once __DIR__ . '/../config.php';
 
 class Glossary
 {
+    public const CATEGORIES = ['Networking', 'Security', 'Databases', 'Programming', 'AI/ML'];
+
     private PDO $pdo;
     private string $model;
     private ?string $apiKey;
@@ -40,30 +42,32 @@ class Glossary
     public function seedSampleTerms(): void
     {
         $sample = [
-            ['API', 'Application Programming Interface', 'Ensemble de règles et de protocoles permettant à des applications de communiquer entre elles.', 'Set of rules and protocols allowing applications to communicate with each other.'],
-            ['Base de données', 'Database', 'Collection organisée de données structurées permettant le stockage, la récupération et la manipulation efficace des informations.', 'Organized collection of structured data allowing efficient storage, retrieval, and manipulation of information.'],
-            ['SQL', 'Structured Query Language', 'Langage standardisé pour gérer les bases de données relationnelles.', 'Standardized language for managing relational databases.'],
-            ['HTTP', 'HyperText Transfer Protocol', 'Protocole de communication utilisé pour transférer des données sur le web.', 'Communication protocol used to transfer data on the web.'],
-            ['Encapsulation', 'Encapsulation', "Principe de la POO qui consiste à cacher les détails d'implémentation d'une classe.", 'OOP principle that hides implementation details of a class.'],
-            ['Héritage', 'Inheritance', "Mécanisme de la POO permettant à une classe d'hériter des propriétés d'une autre classe.", 'OOP mechanism allowing a class to inherit properties from another class.'],
-            ['Polymorphisme', 'Polymorphism', "Capacité d'un objet à prendre plusieurs formes.", 'Ability of an object to take multiple forms.'],
-            ['MVC', 'Model-View-Controller', "Pattern architectural séparant la logique métier, l'interface utilisateur et la gestion des interactions.", 'Architectural pattern separating business logic, user interface, and interaction management.'],
-            ['Firewall', 'Firewall', 'Système de sécurité réseau contrôlant le trafic entrant et sortant.', 'Network security system controlling incoming and outgoing traffic.'],
-            ['Algorithme', 'Algorithm', "Ensemble d'instructions finies et précises permettant de résoudre un problème.", 'Finite and precise set of instructions to solve a problem.'],
+            ['API', 'Application Programming Interface', 'Ensemble de règles et de protocoles permettant à des applications de communiquer entre elles.', 'Set of rules and protocols allowing applications to communicate with each other.', 'Programming'],
+            ['Base de données', 'Database', 'Collection organisée de données structurées permettant le stockage, la récupération et la manipulation efficace des informations.', 'Organized collection of structured data allowing efficient storage, retrieval, and manipulation of information.', 'Databases'],
+            ['SQL', 'Structured Query Language', 'Langage standardisé pour gérer les bases de données relationnelles.', 'Standardized language for managing relational databases.', 'Databases'],
+            ['HTTP', 'HyperText Transfer Protocol', 'Protocole de communication utilisé pour transférer des données sur le web.', 'Communication protocol used to transfer data on the web.', 'Networking'],
+            ['Encapsulation', 'Encapsulation', "Principe de la POO qui consiste à cacher les détails d'implémentation d'une classe.", 'OOP principle that hides implementation details of a class.', 'Programming'],
+            ['Héritage', 'Inheritance', "Mécanisme de la POO permettant à une classe d'hériter des propriétés d'une autre classe.", 'OOP mechanism allowing a class to inherit properties from another class.', 'Programming'],
+            ['Polymorphisme', 'Polymorphism', "Capacité d'un objet à prendre plusieurs formes.", 'Ability of an object to take multiple forms.', 'Programming'],
+            ['MVC', 'Model-View-Controller', "Pattern architectural séparant la logique métier, l'interface utilisateur et la gestion des interactions.", 'Architectural pattern separating business logic, user interface, and interaction management.', 'Programming'],
+            ['Firewall', 'Firewall', 'Système de sécurité réseau contrôlant le trafic entrant et sortant.', 'Network security system controlling incoming and outgoing traffic.', 'Security'],
+            ['Algorithme', 'Algorithm', "Ensemble d'instructions finies et précises permettant de résoudre un problème.", 'Finite and precise set of instructions to solve a problem.', 'AI/ML'],
         ];
         $stmt = $this->pdo->prepare(
-            'INSERT INTO terms (french_term, english_term, french_definition, english_definition)
-             VALUES (:fr, :en, :def_fr, :def_en)
+            'INSERT INTO terms (french_term, english_term, french_definition, english_definition, category)
+             VALUES (:fr, :en, :def_fr, :def_en, :cat)
              ON DUPLICATE KEY UPDATE
                 french_definition = VALUES(french_definition),
-                english_definition = VALUES(english_definition)'
+                english_definition = VALUES(english_definition),
+                category = VALUES(category)'
         );
-        foreach ($sample as [$fr, $en, $defFr, $defEn]) {
+        foreach ($sample as [$fr, $en, $defFr, $defEn, $cat]) {
             $stmt->execute([
                 'fr' => $fr,
                 'en' => $en,
                 'def_fr' => $defFr,
                 'def_en' => $defEn,
+                'cat' => $cat,
             ]);
         }
     }
@@ -80,31 +84,34 @@ class Glossary
     public function saveTerm(array $data): void
     {
         $stmt = $this->pdo->prepare(
-            'INSERT INTO terms (french_term, english_term, french_definition, english_definition)
-             VALUES (:french_term, :english_term, :french_definition, :english_definition)
+            'INSERT INTO terms (french_term, english_term, french_definition, english_definition, category)
+             VALUES (:french_term, :english_term, :french_definition, :english_definition, :category)
              ON DUPLICATE KEY UPDATE
                 french_definition = VALUES(french_definition),
-                english_definition = VALUES(english_definition)'
+                english_definition = VALUES(english_definition),
+                category = VALUES(category)'
         );
         $stmt->execute([
             'french_term' => $data['french_term'],
             'english_term' => $data['english_term'],
             'french_definition' => $data['french_definition'] ?? null,
             'english_definition' => $data['english_definition'] ?? null,
+            'category' => $this->sanitizeCategory($data['category'] ?? null),
         ]);
     }
 
     public function createTerm(array $data): int
     {
         $stmt = $this->pdo->prepare(
-            'INSERT INTO terms (french_term, english_term, french_definition, english_definition)
-             VALUES (:french_term, :english_term, :french_definition, :english_definition)'
+            'INSERT INTO terms (french_term, english_term, french_definition, english_definition, category)
+             VALUES (:french_term, :english_term, :french_definition, :english_definition, :category)'
         );
         $stmt->execute([
             'french_term' => $data['french_term'] ?? '',
             'english_term' => $data['english_term'] ?? '',
             'french_definition' => $data['french_definition'] ?? null,
             'english_definition' => $data['english_definition'] ?? null,
+            'category' => $this->sanitizeCategory($data['category'] ?? null),
         ]);
         return (int)$this->pdo->lastInsertId();
     }
@@ -116,7 +123,8 @@ class Glossary
              SET french_term = :french_term,
                  english_term = :english_term,
                  french_definition = :french_definition,
-                 english_definition = :english_definition
+                 english_definition = :english_definition,
+                 category = :category
              WHERE id = :id'
         );
         $stmt->execute([
@@ -125,6 +133,7 @@ class Glossary
             'english_term' => $data['english_term'] ?? '',
             'french_definition' => $data['french_definition'] ?? null,
             'english_definition' => $data['english_definition'] ?? null,
+            'category' => $this->sanitizeCategory($data['category'] ?? null),
         ]);
     }
 
@@ -141,12 +150,14 @@ class Glossary
         if (!$this->apiKey) {
             throw new RuntimeException('API key not configured server-side');
         }
+        $categoriesList = implode(', ', self::CATEGORIES);
         $prompt = [
             'contents' => [[
                 'parts' => [[
                     'text' => "Translate and define the given term for a glossary.\n" .
                         "Direction: " . ($direction === 'fr_to_en' ? 'French to English' : 'English to French') . "\n" .
-                        "Return ONLY a JSON object with keys: french_term, english_term, french_definition, english_definition.\n" .
+                        "Assign ONE category from this fixed set: {$categoriesList}.\n" .
+                        "Return ONLY a JSON object with keys: french_term, english_term, french_definition, english_definition, category.\n" .
                         "No extra text, no markdown, no explanations.\n" .
                         "Term: \"{$term}\""
                 ]]
@@ -184,21 +195,28 @@ class Glossary
             'english_term' => $json['english_term'] ?? ($direction === 'en_to_fr' ? $term : ($json['english'] ?? $json['en'] ?? '')),
             'french_definition' => $json['french_definition'] ?? ($json['definition_fr'] ?? ''),
             'english_definition' => $json['english_definition'] ?? ($json['definition_en'] ?? ''),
+            'category' => $this->sanitizeCategory($json['category'] ?? null),
             'raw' => $text,
         ];
     }
 
-    public function listTerms(?string $q = null): array
+    public function listTerms(?string $q = null, ?string $category = null): array
     {
+        $conditions = [];
+        $params = [];
         if ($q !== null && trim($q) !== '') {
             $like = '%' . trim($q) . '%';
-            $stmt = $this->pdo->prepare(
-                'SELECT * FROM terms WHERE french_term LIKE :q OR english_term LIKE :q ORDER BY id DESC'
-            );
-            $stmt->execute(['q' => $like]);
-            return $stmt->fetchAll();
+            $conditions[] = '(french_term LIKE :q OR english_term LIKE :q)';
+            $params['q'] = $like;
         }
-        $stmt = $this->pdo->query('SELECT * FROM terms ORDER BY id DESC');
+        $cat = $this->sanitizeCategory($category);
+        if ($cat) {
+            $conditions[] = 'category = :cat';
+            $params['cat'] = $cat;
+        }
+        $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
+        $stmt = $this->pdo->prepare("SELECT * FROM terms {$where} ORDER BY id DESC");
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
@@ -206,5 +224,14 @@ class Glossary
     {
         $stmt = $this->pdo->prepare('DELETE FROM terms WHERE id = :id');
         $stmt->execute(['id' => $id]);
+    }
+
+    private function sanitizeCategory(?string $category): ?string
+    {
+        if (!$category) {
+            return null;
+        }
+        $category = trim($category);
+        return in_array($category, self::CATEGORIES, true) ? $category : null;
     }
 }

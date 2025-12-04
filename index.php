@@ -344,6 +344,10 @@ $page = $_GET['page'] ?? 'glossary';
     const termFormMsg = document.getElementById('term-form-message');
     const feedbackForm = document.getElementById('feedback-form');
     const feedbackStatus = document.getElementById('feedback-status');
+    const termCatField = document.getElementById('term-category');
+    const adminFilterCat = document.getElementById('admin-filter-category');
+
+    const categories = <?php echo json_encode(Glossary::CATEGORIES); ?>;
 
     let direction = 'fr_to_en';
 
@@ -461,6 +465,10 @@ $page = $_GET['page'] ?? 'glossary';
             <span class="themed-muted">${t.englishDef}:</span>
             <div class="mt-1">${entry.english_definition || '-'}</div>
           </div>
+          <div>
+            <span class="themed-muted">Category:</span>
+            <div class="mt-1">${entry.category || '-'}</div>
+          </div>
         </div>
       `;
       resultEl.innerHTML = html;
@@ -521,12 +529,13 @@ $page = $_GET['page'] ?? 'glossary';
     async function loadTerms() {
       if (!termsList) return;
       const q = adminSearch?.value || '';
+      const category = adminFilterCat?.value || '';
       termsList.textContent = 'Loading...';
       try {
         const res = await fetch('?action=list_terms', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ q })
+          body: JSON.stringify({ q, category })
         });
         const data = await res.json();
         if (!res.ok || data.error) throw new Error(data.error || 'Load failed');
@@ -540,6 +549,7 @@ $page = $_GET['page'] ?? 'glossary';
             <div class="text-xs cursor-pointer" data-edit="${r.id}">
               <div><strong>${r.french_term}</strong> → ${r.english_term}</div>
               <div class="themed-muted">${r.french_definition || ''}</div>
+              <div class="themed-muted text-[11px]">Category: ${r.category || '-'}</div>
             </div>
             <div class="flex gap-2">
               <button data-edit="${r.id}" class="px-2 py-1 text-xs rounded btn-secondary">Edit</button>
@@ -580,7 +590,8 @@ $page = $_GET['page'] ?? 'glossary';
         french_term: termFrField.value.trim(),
         english_term: termEnField.value.trim(),
         french_definition: termDefFrField?.value || '',
-        english_definition: termDefEnField?.value || ''
+        english_definition: termDefEnField?.value || '',
+        category: termCatField?.value || ''
       };
       const isUpdate = payload.id && Number(payload.id) > 0;
       const action = isUpdate ? 'update_term' : 'create_term';
@@ -607,6 +618,7 @@ $page = $_GET['page'] ?? 'glossary';
       if (termEnField) termEnField.value = term.english_term || '';
       if (termDefFrField) termDefFrField.value = term.french_definition || '';
       if (termDefEnField) termDefEnField.value = term.english_definition || '';
+      if (termCatField) termCatField.value = term.category || '';
     }
 
     function clearTermForm() {
@@ -615,6 +627,7 @@ $page = $_GET['page'] ?? 'glossary';
       if (termEnField) termEnField.value = '';
       if (termDefFrField) termDefFrField.value = '';
       if (termDefEnField) termDefEnField.value = '';
+      if (termCatField) termCatField.value = '';
       if (termFormMsg) termFormMsg.textContent = '';
     }
 
@@ -646,6 +659,7 @@ $page = $_GET['page'] ?? 'glossary';
     if (saveTermBtn) saveTermBtn.addEventListener('click', saveTerm);
     if (clearTermBtn) clearTermBtn.addEventListener('click', clearTermForm);
     if (adminSearch) adminSearch.addEventListener('input', () => loadTerms());
+    if (adminFilterCat) adminFilterCat.addEventListener('change', () => loadTerms());
     if (feedbackForm) {
       feedbackForm.addEventListener('submit', async (e) => {
         if (!feedbackStatus) return;

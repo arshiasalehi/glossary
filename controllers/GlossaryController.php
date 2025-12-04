@@ -36,6 +36,7 @@ class GlossaryController
                     'english_term' => $ai['english_term'] ?: ($direction === 'fr_to_en' ? '' : $term),
                     'french_definition' => $ai['french_definition'] ?: null,
                     'english_definition' => $ai['english_definition'] ?: null,
+                    'category' => $ai['category'] ?? null,
                 ];
                 $this->glossary->saveTerm($entry);
                 $this->respond(['source' => 'ai', 'entry' => $entry, 'raw' => $ai['raw'] ?? null]);
@@ -46,7 +47,8 @@ class GlossaryController
 
         if ($action === 'list_terms') {
             $q = $input['q'] ?? null;
-            $this->respond(['terms' => $this->glossary->listTerms($q)]);
+            $cat = $input['category'] ?? null;
+            $this->respond(['terms' => $this->glossary->listTerms($q, $cat)]);
         }
 
         if ($action === 'create_term') {
