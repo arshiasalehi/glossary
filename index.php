@@ -5,7 +5,6 @@ require_once __DIR__ . '/models/Dashboard.php';
 require_once __DIR__ . '/models/Feedback.php';
 require_once __DIR__ . '/controllers/GlossaryController.php';
 require_once __DIR__ . '/controllers/AuthController.php';
-require_once __DIR__ . '/models/User.php';
 
 $started = session_status() === PHP_SESSION_ACTIVE;
 if (!$started) {
@@ -17,7 +16,7 @@ $GEMINI_API_KEY = env('GEMINI_API_KEY');
 $glossary = new Glossary($MODEL, $GEMINI_API_KEY);
 $dashboard = new Dashboard($glossary);
 $feedbackModel = new Feedback();
-$auth = new AuthController(new User());
+$auth = new AuthController();
 $glossary->seedSampleTerms();
 
 // API handling

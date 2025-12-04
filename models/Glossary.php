@@ -5,38 +5,69 @@ class Glossary
 {
     public const CATEGORIES = ['Networking', 'Security', 'Databases', 'Programming', 'AI/ML'];
 
-    private PDO $pdo;
     private string $model;
     private ?string $apiKey;
+    private string $dbUrl;
+    private ?string $dbAuth;
 
     public function __construct(string $model, ?string $apiKey)
     {
-        $this->pdo = $this->connect();
         $this->model = $model;
         $this->apiKey = $apiKey;
+        $this->dbUrl = rtrim(env('FIREBASE_DB_URL', 'https://final-8e953-default-rtdb.firebaseio.com'), '/');
+        $this->dbAuth = env('FIREBASE_DB_AUTH', null); // optional auth token
     }
 
-    private function connect(): PDO
+    private function firebaseRequest(string $method, string $path, ?array $data = null): mixed
     {
-        $dbHost = env('DB_HOST', '127.0.0.1');
-        $dbPort = env('DB_PORT', '3306');
-        $dbName = env('DB_NAME', 'glossary');
-        $dbUser = env('DB_USER', 'root');
-        $dbPass = env('DB_PASS', '');
-        $dsn = "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4";
-        return new PDO($dsn, $dbUser, $dbPass, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
+        $url = $this->dbUrl . '/' . ltrim($path, '/');
+        $params = [];
+        if ($this->dbAuth) {
+            $params['auth'] = $this->dbAuth;
+        }
+        if ($params) {
+            $url .= (str_contains($url, '?') ? '&' : '?') . http_build_query($params);
+        }
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        if ($data !== null) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        }
+        $raw = curl_exec($ch);
+        if ($raw === false) {
+            throw new RuntimeException('Firebase request failed: ' . curl_error($ch));
+        }
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        $decoded = json_decode($raw, true);
+        if ($code >= 400) {
+            $msg = $decoded['error'] ?? ("HTTP $code");
+            throw new RuntimeException("Firebase error: $msg");
+        }
+        return $decoded;
+    }
+
+    private function allTerms(): array
+    {
+        $data = $this->firebaseRequest('GET', 'terms.json') ?? [];
+        $terms = [];
+        if (is_array($data)) {
+            foreach ($data as $id => $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $row['id'] = $id;
+                $terms[] = $row;
+            }
+        }
+        return $terms;
     }
 
     public function countTerms(): int
     {
-        try {
-            return (int)$this->pdo->query("SELECT COUNT(*) FROM terms")->fetchColumn();
-        } catch (Throwable) {
-            return 0;
-        }
+        return count($this->allTerms());
     }
 
     public function seedSampleTerms(): void
@@ -53,21 +84,17 @@ class Glossary
             ['Firewall', 'Firewall', 'Système de sécurité réseau contrôlant le trafic entrant et sortant.', 'Network security system controlling incoming and outgoing traffic.', 'Security'],
             ['Algorithme', 'Algorithm', "Ensemble d'instructions finies et précises permettant de résoudre un problème.", 'Finite and precise set of instructions to solve a problem.', 'AI/ML'],
         ];
-        $stmt = $this->pdo->prepare(
-            'INSERT INTO terms (french_term, english_term, french_definition, english_definition, category)
-             VALUES (:fr, :en, :def_fr, :def_en, :cat)
-             ON DUPLICATE KEY UPDATE
-                french_definition = VALUES(french_definition),
-                english_definition = VALUES(english_definition),
-                category = VALUES(category)'
-        );
+        $existing = $this->allTerms();
+        if (!empty($existing)) {
+            return;
+        }
         foreach ($sample as [$fr, $en, $defFr, $defEn, $cat]) {
-            $stmt->execute([
-                'fr' => $fr,
-                'en' => $en,
-                'def_fr' => $defFr,
-                'def_en' => $defEn,
-                'cat' => $cat,
+            $this->createTerm([
+                'french_term' => $fr,
+                'english_term' => $en,
+                'french_definition' => $defFr,
+                'english_definition' => $defEn,
+                'category' => $cat,
             ]);
         }
     }
@@ -75,74 +102,60 @@ class Glossary
     public function findTerm(string $term, string $direction): ?array
     {
         $column = $direction === 'fr_to_en' ? 'french_term' : 'english_term';
-        $stmt = $this->pdo->prepare("SELECT * FROM terms WHERE LOWER($column) = LOWER(:term) LIMIT 1");
-        $stmt->execute(['term' => $term]);
-        $row = $stmt->fetch();
-        return $row ?: null;
+        $terms = $this->allTerms();
+        foreach ($terms as $row) {
+            $value = $row[$column] ?? '';
+            if (mb_strtolower($value) === mb_strtolower($term)) {
+                return $row;
+            }
+        }
+        return null;
     }
 
     public function saveTerm(array $data): void
     {
-        $stmt = $this->pdo->prepare(
-            'INSERT INTO terms (french_term, english_term, french_definition, english_definition, category)
-             VALUES (:french_term, :english_term, :french_definition, :english_definition, :category)
-             ON DUPLICATE KEY UPDATE
-                french_definition = VALUES(french_definition),
-                english_definition = VALUES(english_definition),
-                category = VALUES(category)'
-        );
-        $stmt->execute([
-            'french_term' => $data['french_term'],
-            'english_term' => $data['english_term'],
-            'french_definition' => $data['french_definition'] ?? null,
-            'english_definition' => $data['english_definition'] ?? null,
-            'category' => $this->sanitizeCategory($data['category'] ?? null),
-        ]);
+        $existing = $this->findTerm($data['french_term'] ?? '', 'fr_to_en') ?? $this->findTerm($data['english_term'] ?? '', 'en_to_fr');
+        if ($existing) {
+            $this->updateTerm((string)($existing['id'] ?? ''), $data);
+            return;
+        }
+        $this->createTerm($data);
     }
 
-    public function createTerm(array $data): int
+    public function createTerm(array $data): string
     {
-        $stmt = $this->pdo->prepare(
-            'INSERT INTO terms (french_term, english_term, french_definition, english_definition, category)
-             VALUES (:french_term, :english_term, :french_definition, :english_definition, :category)'
-        );
-        $stmt->execute([
+        $payload = [
             'french_term' => $data['french_term'] ?? '',
             'english_term' => $data['english_term'] ?? '',
             'french_definition' => $data['french_definition'] ?? null,
             'english_definition' => $data['english_definition'] ?? null,
             'category' => $this->sanitizeCategory($data['category'] ?? null),
-        ]);
-        return (int)$this->pdo->lastInsertId();
+        ];
+        $resp = $this->firebaseRequest('POST', 'terms.json', $payload);
+        $id = $resp['name'] ?? null;
+        return $id ? (string)$id : '';
     }
 
-    public function updateTerm(int $id, array $data): void
+    public function updateTerm(string $id, array $data): void
     {
-        $stmt = $this->pdo->prepare(
-            'UPDATE terms
-             SET french_term = :french_term,
-                 english_term = :english_term,
-                 french_definition = :french_definition,
-                 english_definition = :english_definition,
-                 category = :category
-             WHERE id = :id'
-        );
-        $stmt->execute([
-            'id' => $id,
+        $payload = [
             'french_term' => $data['french_term'] ?? '',
             'english_term' => $data['english_term'] ?? '',
             'french_definition' => $data['french_definition'] ?? null,
             'english_definition' => $data['english_definition'] ?? null,
             'category' => $this->sanitizeCategory($data['category'] ?? null),
-        ]);
+        ];
+        $this->firebaseRequest('PATCH', "terms/{$id}.json", $payload);
     }
 
-    public function getTerm(int $id): ?array
+    public function getTerm(string $id): ?array
     {
-        $stmt = $this->pdo->prepare('SELECT * FROM terms WHERE id = :id LIMIT 1');
-        $stmt->execute(['id' => $id]);
-        $row = $stmt->fetch();
-        return $row ?: null;
+        foreach ($this->allTerms() as $row) {
+            if ((string)($row['id'] ?? '') === (string)$id) {
+                return $row;
+            }
+        }
+        return null;
     }
 
     public function lookupWithAI(string $term, string $direction): array
@@ -202,28 +215,34 @@ class Glossary
 
     public function listTerms(?string $q = null, ?string $category = null): array
     {
-        $conditions = [];
-        $params = [];
-        if ($q !== null && trim($q) !== '') {
-            $like = '%' . trim($q) . '%';
-            $conditions[] = '(french_term LIKE :q OR english_term LIKE :q)';
-            $params['q'] = $like;
-        }
+        $qTrim = $q !== null ? trim($q) : '';
         $cat = $this->sanitizeCategory($category);
-        if ($cat) {
-            $conditions[] = 'category = :cat';
-            $params['cat'] = $cat;
+        $terms = $this->allTerms();
+        $filtered = [];
+        foreach ($terms as $term) {
+            $match = true;
+            if ($qTrim !== '') {
+                $hay = mb_strtolower(($term['french_term'] ?? '') . ' ' . ($term['english_term'] ?? ''));
+                if (!str_contains($hay, mb_strtolower($qTrim))) {
+                    $match = false;
+                }
+            }
+            if ($cat) {
+                if (($term['category'] ?? null) !== $cat) {
+                    $match = false;
+                }
+            }
+            if ($match) {
+                $filtered[] = $term;
+            }
         }
-        $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
-        $stmt = $this->pdo->prepare("SELECT * FROM terms {$where} ORDER BY id DESC");
-        $stmt->execute($params);
-        return $stmt->fetchAll();
+        usort($filtered, fn($a, $b) => strcmp((string)($b['id'] ?? ''), (string)($a['id'] ?? '')));
+        return $filtered;
     }
 
-    public function deleteTerm(int $id): void
+    public function deleteTerm(string $id): void
     {
-        $stmt = $this->pdo->prepare('DELETE FROM terms WHERE id = :id');
-        $stmt->execute(['id' => $id]);
+        $this->firebaseRequest('DELETE', "terms/{$id}.json");
     }
 
     private function sanitizeCategory(?string $category): ?string

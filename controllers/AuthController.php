@@ -1,13 +1,10 @@
 <?php
-require_once __DIR__ . '/../models/User.php';
+require_once __DIR__ . '/../config.php';
 
 class AuthController
 {
-    private User $users;
-
-    public function __construct(User $users)
+    public function __construct()
     {
-        $this->users = $users;
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
@@ -20,13 +17,14 @@ class AuthController
         if ($username === '' || $password === '') {
             $this->respond(['error' => 'Username and password required'], 400);
         }
-        $user = $this->users->findByUsername($username);
-        if (!$user || !password_verify($password, $user['password_hash'])) {
+        $adminUser = env('ADMIN_USER', 'admin');
+        $adminPass = env('ADMIN_PASS', 'admin123');
+        if (!hash_equals($adminUser, $username) || !hash_equals($adminPass, $password)) {
             $this->respond(['error' => 'Invalid credentials'], 401);
         }
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['username'] = $user['username'];
-        $this->respond(['ok' => true, 'username' => $user['username']]);
+        $_SESSION['user_id'] = $adminUser;
+        $_SESSION['username'] = $adminUser;
+        $this->respond(['ok' => true, 'username' => $adminUser]);
     }
 
     public function requireAuth(): void

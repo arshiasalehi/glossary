@@ -57,8 +57,8 @@ class GlossaryController
         }
 
         if ($action === 'update_term') {
-            $id = (int)($input['id'] ?? 0);
-            if ($id <= 0) {
+            $id = (string)($input['id'] ?? '');
+            if ($id === '') {
                 $this->respond(['error' => 'Invalid id'], 400);
             }
             $this->glossary->updateTerm($id, $input);
@@ -66,8 +66,8 @@ class GlossaryController
         }
 
         if ($action === 'delete_term') {
-            $id = (int)($input['id'] ?? 0);
-            if ($id <= 0) {
+            $id = (string)($input['id'] ?? '');
+            if ($id === '') {
                 $this->respond(['error' => 'Invalid id'], 400);
             }
             $this->glossary->deleteTerm($id);

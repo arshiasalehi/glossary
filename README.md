@@ -1,117 +1,30 @@
-# 📘 AI-Powered French ↔ English Glossary (PHP + MySQL + Gemini)
+# AI Glossary (PHP + Firebase + Gemini)
 
-**AI Glossary** is a lightweight PHP + MySQL MVP that provides instant French ↔ English translations and definition sentences.  
-The app first checks the local **MySQL terms table**, and if the word is missing, it calls **Gemini (gemini-2.5-flash)** via API, displays the result, and automatically stores it for future use.
+French ↔ English glossary that checks Firebase Realtime Database first; if a term is missing, it asks Gemini (`gemini-2.5-flash`) for translation/definitions, shows the result, and stores it back. Includes an admin dashboard (login, CRUD with categories), live search, and a feedback form (Formspree).
 
-The application includes an **admin dashboard**, a **feedback system**, and a modern, code-editor-style UI with tabs, theme toggle, and animated loader.
+## Stack
+- PHP 8+, minimal MVC (`models/`, `controllers/`, `views/`)
+- Firebase Realtime Database (categories enforced: Networking, Security, Databases, Programming, AI/ML)
+- Google Gemini API (v1beta, `gemini-2.5-flash`)
+- Tailwind (CDN) + custom CSS, vanilla JS
+- Formspree for feedback
 
----
+## Setup
+1) Copy `.env.example` to `.env` and set:
+   - `GEMINI_API_KEY`
+   - `FIREBASE_DB_URL` (e.g., `https://final-8e953-default-rtdb.firebaseio.com`)
+   - Optional `FIREBASE_DB_AUTH` if your rules require an auth token
+   - `ADMIN_USER` / `ADMIN_PASS` (default `admin/admin123`)
+2) Start the server: `php -S localhost:8000` (or your preferred port).
+3) Open `http://localhost:8000`.
 
-## 🚀 Features
+## Admin
+- Login via Dashboard tab.
+- CRUD with category assignment; filter/search terms.
 
-### 📚 AI Translation & Glossary Engine
-- Local lookup from MySQL terms table  
-- If not found → call **Gemini API** for:
-  - Translation  
-  - Definition sentence  
-- Save new terms automatically for next use  
-- Fast lookup with live search (admin)
+## Feedback
+- Posts to `https://formspree.io/f/mblnyonz`.
 
-### 🔐 Admin Dashboard
-- Admin login (`admin / admin123` seeded)  
-- Create, update, delete glossary terms  
-- Search and filter terms  
-- Minimal MVC structure (controllers, models, views)
-
-### 📨 User Feedback System
-- Feedback page using **Formspree**  
-- Submits to: `https://formspree.io/f/mblnyonz`  
-- No backend logic needed — instant email collection
-
-### 🎨 UI & Interactions
-- Code-editor themed layout with:
-  - Tabbed pages (Glossary / Dashboard / Feedback)  
-  - Dark / Light mode lamp toggle  
-  - Animated EVA loader for API calls  
-- Tailwind CSS (via CDN) + custom CSS variables  
-- Vanilla JS for UI logic and admin CRUD actions  
-
----
-
-# 💻 Tech Stack
-
-## 🖥️ Backend
-![PHP](https://img.shields.io/badge/PHP-777BB4?style=for-the-badge&logo=php&logoColor=white)
-![MySQL](https://img.shields.io/badge/MySQL-005C84?style=for-the-badge&logo=mysql&logoColor=white)
-
-- **PHP 8+** runtime  
-- Minimal routing inside index.php  
-- MVC-inspired organization (models, controllers, views)  
-- PDO prepared statements and exceptions  
-- Gemini API requests using cURL  
-
-## 🎨 Frontend
-![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwindcss&logoColor=white)
-![HTML](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
-
-- Tailwind via CDN  
-- Custom design tokens for theme control  
-- Vanilla JS for:
-  - Tab switching  
-  - Light/dark mode  
-  - Admin live search  
-  - CRUD modal logic  
-
-## 🤖 AI Integration
-![Gemini](https://img.shields.io/badge/Google_Gemini_API-4285F4?style=for-the-badge&logo=google&logoColor=white)
-
-- Gemini v1beta  
-- Model: **gemini-2.5-flash**  
-- Auto-translation + explanation sentence  
-
-## 🧰 Dev Tools
-![VSCode](https://img.shields.io/badge/VS_Code-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)
-![Git](https://img.shields.io/badge/Git-F05033?style=for-the-badge&logo=git&logoColor=white)
-
-- Git repo: `git@github.com:arshiasalehi/glossary.git`  
-- Local PHP server  
-- MySQL local instance  
-
----
-
-# 🧠 Architecture Overview
-
-## 🎨 Presentation Layer
-- Tailwind-based code-editor styled UI  
-- Three-tab navigation:
-  - Glossary  
-  - Dashboard  
-  - Feedback  
-- Dark/light theme with animated lamp  
-- EVA animated loader for Gemini calls  
-
-## ⚙️ Business Logic
-- Glossary lookup → local DB first  
-- Fallback to Gemini API → save & return  
-- Validation & sanitization for inputs  
-- Admin role verification  
-
-## 🗄️ Data Access Layer
-- MySQL with two main tables:
-  - `terms` (word, translation, definition, created_at)  
-  - `users` (seeded admin)  
-- PDO prepared statements  
-- CRUD models for terms and users  
-
----
-# 📚 Top Languages Used
-
-![PHP](https://img.shields.io/badge/PHP-85%25-777BB4?style=for-the-badge&logo=php&logoColor=white)
-![SQL](https://img.shields.io/badge/SQL-15%25-005C84?style=for-the-badge&logo=mysql&logoColor=white)
-
----
-
-# 👥 Team Members
-
-- [**Arshia Salehi**](https://github.com/arshiasalehi)
-
+## Notes
+- Keep `.env` private; `.env` is gitignored.
+- Categories are fixed to keep data consistent.
