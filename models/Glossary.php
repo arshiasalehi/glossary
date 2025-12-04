@@ -9,6 +9,8 @@ class Glossary
     private ?string $apiKey;
     private string $dbUrl;
     private ?string $dbAuth;
+    private ?string $firebaseApiKey;
+    private ?string $idToken = null;
 
     public function __construct(string $model, ?string $apiKey)
     {
@@ -16,14 +18,16 @@ class Glossary
         $this->apiKey = $apiKey;
         $this->dbUrl = rtrim(env('FIREBASE_DB_URL', 'https://final-8e953-default-rtdb.firebaseio.com'), '/');
         $this->dbAuth = env('FIREBASE_DB_AUTH', null); // optional auth token
+        $this->firebaseApiKey = env('FIREBASE_API_KEY', null);
     }
 
     private function firebaseRequest(string $method, string $path, ?array $data = null): mixed
     {
         $url = $this->dbUrl . '/' . ltrim($path, '/');
         $params = [];
-        if ($this->dbAuth) {
-            $params['auth'] = $this->dbAuth;
+        $authToken = $this->getAuthToken();
+        if ($authToken) {
+            $params['auth'] = $authToken;
         }
         if ($params) {
             $url .= (str_contains($url, '?') ? '&' : '?') . http_build_query($params);
@@ -47,6 +51,40 @@ class Glossary
             throw new RuntimeException("Firebase error: $msg");
         }
         return $decoded;
+    }
+
+    private function getAuthToken(): ?string
+    {
+        if ($this->dbAuth) {
+            return $this->dbAuth;
+        }
+        if ($this->idToken) {
+            return $this->idToken;
+        }
+        if (!$this->firebaseApiKey) {
+            return null; // will likely 401 if rules require auth
+        }
+        // Anonymous sign-up to obtain idToken
+        $ch = curl_init("https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" . urlencode($this->firebaseApiKey));
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS => json_encode(new stdClass()),
+        ]);
+        $raw = curl_exec($ch);
+        if ($raw === false) {
+            throw new RuntimeException('Firebase auth failed: ' . curl_error($ch));
+        }
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        $data = json_decode($raw, true);
+        if ($code >= 400) {
+            $msg = $data['error']['message'] ?? ("HTTP $code");
+            throw new RuntimeException("Firebase auth error: $msg");
+        }
+        $this->idToken = $data['idToken'] ?? null;
+        return $this->idToken;
     }
 
     private function allTerms(): array
